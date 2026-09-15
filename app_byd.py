@@ -90,32 +90,19 @@ st.markdown("""
             text-align: center;
         }
 
-        /* Control anti-desbordamiento para Hora y Minuto en pantallas móviles estrechas */
+        /* Bloque perfectamente simétrico y flexible al 50% */
         div[data-testid="stHorizontalBlock"] {
             display: flex !important;
             flex-direction: row !important;
             flex-wrap: nowrap !important;
             width: 100% !important;
             gap: 8px !important;
-            overflow: hidden !important;
         }
         
         div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
             flex: 1 1 50% !important;
             width: 50% !important;
-            max-width: 50% !important;
             min-width: 0 !important;
-        }
-
-        div[data-baseweb="select"] {
-            width: 100% !important;
-            min-width: 0 !important;
-        }
-        
-        div[data-baseweb="select"] > div {
-            padding-left: 6px !important;
-            padding-right: 2px !important;
-            font-size: 0.9rem !important;
         }
 
         .schedule-card {
@@ -225,20 +212,28 @@ if datos:
             format="%.2f"
         )
         
-        # Hora y Minuto con etiquetas cortas y protección anti-desborde
+        # Hora y Minuto mediante controles numéricos compactos (sin desborde)
         ahora = redondear_a_5_minutos(obtener_ahora_local())
-        lista_horas = [f"{i:02d}" for i in range(24)]
-        lista_minutos = [f"{i:02d}" for i in range(0, 60, 5)]
         
-        idx_hora_defecto = ahora.hour
-        min_defecto_str = f"{ahora.minute:02d}"
-        idx_min_defecto = lista_minutos.index(min_defecto_str) if min_defecto_str in lista_minutos else 0
-
         col_hora, col_min = st.columns(2)
         with col_hora:
-            hora_sel = st.selectbox("Hora inicio:", options=lista_horas, index=idx_hora_defecto)
+            hora_val = st.number_input(
+                "Hora inicio:",
+                min_value=0,
+                max_value=23,
+                value=ahora.hour,
+                step=1,
+                format="%02d"
+            )
         with col_min:
-            min_sel = st.selectbox("Minuto:", options=lista_minutos, index=idx_min_defecto)
+            min_val = st.number_input(
+                "Minutos:",
+                min_value=0,
+                max_value=55,
+                value=ahora.minute,
+                step=5,
+                format="%02d"
+            )
 
     # 3. Barra de progreso tricolor
     pct_azul = min(max(soc_actual, 0), 100)
@@ -266,7 +261,7 @@ if datos:
         minutos_totales = delta_pct * minutos_por_pct
         duracion = datetime.timedelta(minutes=minutos_totales)
         
-        hora_inicio_dt = datetime.time(int(hora_sel), int(min_sel))
+        hora_inicio_dt = datetime.time(int(hora_val), int(min_val))
         fecha_local = obtener_ahora_local().date()
         dt_inicio = datetime.datetime.combine(fecha_local, hora_inicio_dt)
         dt_fin = redondear_a_5_minutos(dt_inicio + duracion)
