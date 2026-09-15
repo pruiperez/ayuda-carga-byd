@@ -65,25 +65,20 @@ st.markdown("""
             display: flex;
             align-items: baseline;
             justify-content: center;
-            gap: 8px;
+            gap: 4px;
             margin-top: 5px;
             margin-bottom: 2px;
         }
         .soc-value {
-            font-size: 3.5rem;
+            font-size: 3.8rem;
             font-weight: 800;
             color: #2563eb;
             line-height: 1;
         }
         .soc-unit {
-            font-size: 1.8rem;
+            font-size: 2rem;
             font-weight: 700;
             color: #2563eb;
-        }
-        .soc-km {
-            font-size: 1.1rem;
-            color: #6b7280;
-            margin-left: 10px;
         }
 
         .timestamp-box {
@@ -198,7 +193,6 @@ async def descargar_datos_reales():
         return {
             "vin": vin,
             "bateria": int(realtime.elec_percent),
-            "autonomia_ev": int(realtime.ev_endurance),
             "timestamp": obtener_ahora_local()
         }
 
@@ -224,22 +218,20 @@ if datos:
     soc_actual = datos["bateria"]
     dt_lectura = datos["timestamp"]
     
-    # Recuperamos la configuración guardada de la última sesión
     cfg = cargar_configuracion()
 
-    # 1. Métrica destacada
+    # 1. Métrica destacada (solo % de batería, sin los km de EV)
     st.markdown(f"""
         <div class="soc-highlight-container">
             <span class="soc-value">{soc_actual}</span>
             <span class="soc-unit">%</span>
-            <span class="soc-km">· {datos['autonomia_ev']} km EV</span>
         </div>
         <div class="timestamp-box">
             🕒 Leído el {dt_lectura.strftime('%d/%m/%Y a las %H:%M:%S')}
         </div>
     """, unsafe_allow_html=True)
 
-    # 2. Configuración interactiva (siempre visible y persistente)
+    # 2. Configuración interactiva
     soc_objetivo = st.slider(
         "Carga deseada (%)",
         min_value=0,
@@ -267,7 +259,6 @@ if datos:
     hora_guardada = cfg.get("hora_inicio", "05h")
     minuto_guardado = cfg.get("minuto_inicio", "00m")
 
-    # Si por alguna razón la hora guardada no está en las opciones, se usa 05h
     idx_hora_default = hora_guardada if hora_guardada in lista_horas else "05h"
     idx_min_default = minuto_guardado if minuto_guardado in lista_minutos else "00m"
 
@@ -328,7 +319,6 @@ if datos:
         minutos_totales = delta_pct * minutos_por_pct
         duracion = datetime.timedelta(minutes=minutos_totales)
         
-        # Recuperación de hora y minuto activos
         h_txt = hora_seleccionada or idx_hora_default
         m_txt = minuto_seleccionado or idx_min_default
         h_val = int(h_txt.replace("h", ""))
