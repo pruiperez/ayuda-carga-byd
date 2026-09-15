@@ -90,19 +90,43 @@ st.markdown("""
             text-align: center;
         }
 
-        /* Bloque perfectamente simétrico y flexible al 50% */
+        /* --- CONTENEDOR HORA Y MINUTOS ANTI-DESBORDE --- */
+        .time-header-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-color, #374151);
+            margin-top: 8px;
+            margin-bottom: 4px;
+        }
+
         div[data-testid="stHorizontalBlock"] {
             display: flex !important;
             flex-direction: row !important;
             flex-wrap: nowrap !important;
             width: 100% !important;
             gap: 8px !important;
+            align-items: flex-end !important;
         }
         
         div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
-            flex: 1 1 50% !important;
-            width: 50% !important;
+            flex: 1 1 calc(50% - 4px) !important;
+            width: calc(50% - 4px) !important;
+            max-width: calc(50% - 4px) !important;
             min-width: 0 !important;
+        }
+
+        /* Oculta los botones laterales (+ / -) solo dentro de las columnas para eliminar el ancho mínimo forzado */
+        div[data-testid="stHorizontalBlock"] button[data-testid="stNumberInputStepDown"],
+        div[data-testid="stHorizontalBlock"] button[data-testid="stNumberInputStepUp"] {
+            display: none !important;
+        }
+
+        /* Ajuste fino del input numérico para que ocupe el 100% sin padding excesivo */
+        div[data-testid="stHorizontalBlock"] input {
+            text-align: center !important;
+            padding: 6px 4px !important;
+            font-size: 1.1rem !important;
+            font-weight: 600 !important;
         }
 
         .schedule-card {
@@ -181,7 +205,7 @@ if datos:
     soc_actual = datos["bateria"]
     dt_lectura = datos["timestamp"]
 
-    # 1. Indicador numérico destacado
+    # 1. Métrica destacada
     st.markdown(f"""
         <div class="soc-highlight-container">
             <span class="soc-value">{soc_actual}</span>
@@ -212,13 +236,14 @@ if datos:
             format="%.2f"
         )
         
-        # Hora y Minuto mediante controles numéricos compactos (sin desborde)
+        st.markdown("<div class='time-header-title'>⏰ Hora de inicio (Hora : Minutos)</div>", unsafe_allow_html=True)
+        
         ahora = redondear_a_5_minutos(obtener_ahora_local())
         
         col_hora, col_min = st.columns(2)
         with col_hora:
             hora_val = st.number_input(
-                "Hora inicio:",
+                "Hora (0-23)",
                 min_value=0,
                 max_value=23,
                 value=ahora.hour,
@@ -227,7 +252,7 @@ if datos:
             )
         with col_min:
             min_val = st.number_input(
-                "Minutos:",
+                "Min (0-55)",
                 min_value=0,
                 max_value=55,
                 value=ahora.minute,
