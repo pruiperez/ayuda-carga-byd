@@ -90,43 +90,12 @@ st.markdown("""
             text-align: center;
         }
 
-        /* --- CONTENEDOR HORA Y MINUTOS ANTI-DESBORDE --- */
-        .time-header-title {
-            font-size: 0.85rem;
-            font-weight: 600;
+        .section-time-title {
+            font-size: 0.9rem;
+            font-weight: 700;
             color: var(--text-color, #374151);
-            margin-top: 8px;
+            margin-top: 10px;
             margin-bottom: 4px;
-        }
-
-        div[data-testid="stHorizontalBlock"] {
-            display: flex !important;
-            flex-direction: row !important;
-            flex-wrap: nowrap !important;
-            width: 100% !important;
-            gap: 8px !important;
-            align-items: flex-end !important;
-        }
-        
-        div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
-            flex: 1 1 calc(50% - 4px) !important;
-            width: calc(50% - 4px) !important;
-            max-width: calc(50% - 4px) !important;
-            min-width: 0 !important;
-        }
-
-        /* Oculta los botones laterales (+ / -) solo dentro de las columnas para eliminar el ancho mínimo forzado */
-        div[data-testid="stHorizontalBlock"] button[data-testid="stNumberInputStepDown"],
-        div[data-testid="stHorizontalBlock"] button[data-testid="stNumberInputStepUp"] {
-            display: none !important;
-        }
-
-        /* Ajuste fino del input numérico para que ocupe el 100% sin padding excesivo */
-        div[data-testid="stHorizontalBlock"] input {
-            text-align: center !important;
-            padding: 6px 4px !important;
-            font-size: 1.1rem !important;
-            font-weight: 600 !important;
         }
 
         .schedule-card {
@@ -236,29 +205,31 @@ if datos:
             format="%.2f"
         )
         
-        st.markdown("<div class='time-header-title'>⏰ Hora de inicio (Hora : Minutos)</div>", unsafe_allow_html=True)
-        
+        # Opciones para horas (0 a 23) y minutos (0 a 55 en saltos de 5)
         ahora = redondear_a_5_minutos(obtener_ahora_local())
+        lista_horas = [f"{i:02d}h" for i in range(24)]
+        lista_minutos = [f"{i:02d}m" for i in range(0, 60, 5)]
         
-        col_hora, col_min = st.columns(2)
-        with col_hora:
-            hora_val = st.number_input(
-                "Hora (0-23)",
-                min_value=0,
-                max_value=23,
-                value=ahora.hour,
-                step=1,
-                format="%02d"
-            )
-        with col_min:
-            min_val = st.number_input(
-                "Min (0-55)",
-                min_value=0,
-                max_value=55,
-                value=ahora.minute,
-                step=5,
-                format="%02d"
-            )
+        hora_defecto_str = f"{ahora.hour:02d}h"
+        min_defecto_str = f"{ahora.minute:02d}m"
+
+        # SECCIÓN 1: BOTONES DE HORAS (00h a 23h)
+        st.markdown("<div class='section-time-title'>🕐 Hora de inicio:</div>", unsafe_allow_html=True)
+        hora_seleccionada = st.pills(
+            "Seleccionar hora",
+            options=lista_horas,
+            default=hora_defecto_str,
+            label_visibility="collapsed"
+        )
+
+        # SECCIÓN 2: BOTONES DE MINUTOS (00m a 55m)
+        st.markdown("<div class='section-time-title'>⏱️ Minutos de inicio:</div>", unsafe_allow_html=True)
+        minuto_seleccionado = st.pills(
+            "Seleccionar minutos",
+            options=lista_minutos,
+            default=min_defecto_str if min_defecto_str in lista_minutos else lista_minutos[0],
+            label_visibility="collapsed"
+        )
 
     # 3. Barra de progreso tricolor
     pct_azul = min(max(soc_actual, 0), 100)
@@ -286,7 +257,11 @@ if datos:
         minutos_totales = delta_pct * minutos_por_pct
         duracion = datetime.timedelta(minutes=minutos_totales)
         
-        hora_inicio_dt = datetime.time(int(hora_val), int(min_val))
+        # Recuperación de enteros desde la etiqueta seleccionada
+        h_val = int((hora_seleccionada or hora_defecto_str).replace("h", ""))
+        m_val = int((minuto_seleccionado or min_defecto_str).replace("m", ""))
+        
+        hora_inicio_dt = datetime.time(h_val, m_val)
         fecha_local = obtener_ahora_local().date()
         dt_inicio = datetime.datetime.combine(fecha_local, hora_inicio_dt)
         dt_fin = redondear_a_5_minutos(dt_inicio + duracion)
