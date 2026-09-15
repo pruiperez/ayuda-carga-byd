@@ -13,7 +13,7 @@ CONFIG_FILE = "config.json"
 def obtener_ahora_local() -> datetime.datetime:
     return datetime.datetime.now(TZ_LOCAL)
 
-# --- Funciones de persistencia de configuración ---
+# --- Persistencia de la última configuración utilizada ---
 def cargar_configuracion() -> dict:
     config_defecto = {
         "soc_objetivo": 80,
@@ -224,7 +224,7 @@ if datos:
     soc_actual = datos["bateria"]
     dt_lectura = datos["timestamp"]
     
-    # Cargar valores guardados previamente
+    # Recuperamos la configuración guardada de la última sesión
     cfg = cargar_configuracion()
 
     # 1. Métrica destacada
@@ -239,7 +239,7 @@ if datos:
         </div>
     """, unsafe_allow_html=True)
 
-    # 2. Configuración interactiva con valores persistentes
+    # 2. Configuración interactiva (siempre visible y persistente)
     soc_objetivo = st.slider(
         "Carga deseada (%)",
         min_value=0,
@@ -267,11 +267,15 @@ if datos:
     hora_guardada = cfg.get("hora_inicio", "05h")
     minuto_guardado = cfg.get("minuto_inicio", "00m")
 
+    # Si por alguna razón la hora guardada no está en las opciones, se usa 05h
+    idx_hora_default = hora_guardada if hora_guardada in lista_horas else "05h"
+    idx_min_default = minuto_guardado if minuto_guardado in lista_minutos else "00m"
+
     st.markdown("<div class='section-time-title'>🕐 Hora de inicio:</div>", unsafe_allow_html=True)
     hora_seleccionada = st.pills(
         "Seleccionar hora",
         options=lista_horas,
-        default=hora_guardada if hora_guardada in lista_horas else "05h",
+        default=idx_hora_default,
         key="pills_hora",
         on_change=lambda: guardar_configuracion("hora_inicio", st.session_state.pills_hora),
         label_visibility="collapsed"
@@ -281,13 +285,13 @@ if datos:
     minuto_seleccionado = st.pills(
         "Seleccionar minutos",
         options=lista_minutos,
-        default=minuto_guardado if minuto_guardado in lista_minutos else "00m",
+        default=idx_min_default,
         key="pills_minuto",
         on_change=lambda: guardar_configuracion("minuto_inicio", st.session_state.pills_minuto),
         label_visibility="collapsed"
     )
 
-    # 3. Barra de progreso tricolor con escala exacta
+    # 3. Barra de progreso tricolor con escala matemática exacta
     pct_azul = min(max(soc_actual, 0), 100)
     pct_verde = max(0, soc_objetivo - soc_actual) if soc_objetivo > soc_actual else 0
     pct_gris = max(0, 100 - (pct_azul + pct_verde))
@@ -316,7 +320,7 @@ if datos:
         </div>
     """, unsafe_allow_html=True)
 
-    # 4. Cálculo de horarios
+    # 4. Horarios calculados
     if soc_objetivo <= soc_actual:
         st.info(f"El nivel actual ({soc_actual}%) ya cubre o supera el objetivo marcado ({soc_objetivo}%).")
     else:
@@ -324,8 +328,11 @@ if datos:
         minutos_totales = delta_pct * minutos_por_pct
         duracion = datetime.timedelta(minutes=minutos_totales)
         
-        h_val = int((hora_seleccionada or hora_guardada).replace("h", ""))
-        m_val = int((minuto_seleccionado or minuto_guardado).replace("m", ""))
+        # Recuperación de hora y minuto activos
+        h_txt = hora_seleccionada or idx_hora_default
+        m_txt = minuto_seleccionado or idx_min_default
+        h_val = int(h_txt.replace("h", ""))
+        m_val = int(m_txt.replace("m", ""))
         
         hora_inicio_dt = datetime.time(h_val, m_val)
         fecha_local = obtener_ahora_local().date()
