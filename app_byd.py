@@ -45,7 +45,7 @@ def guardar_configuracion(clave: str, valor):
     guardar_configuracion_multiple({clave: valor})
 
 st.set_page_config(
-    page_title="Ayuda carga Atto 2 Dmi",
+    page_title="Carga Atto 2 DMi",
     page_icon="⚡",
     layout="centered",
     initial_sidebar_state="collapsed"
