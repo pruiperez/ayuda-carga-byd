@@ -64,6 +64,10 @@ st.markdown("""
             font-weight: 800;
             color: var(--text-color, #111827);
             margin-bottom: 0.4rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
         }
 
         .soc-highlight-container {
@@ -241,7 +245,8 @@ def intentar_actualizar_telemetria():
 if "datos_coche" not in st.session_state:
     intentar_actualizar_telemetria()
 
-st.markdown("<div class='app-title'>⚡ Carga Atto 2 DMi</div>", unsafe_allow_html=True)
+# Título centrado y simétrico con rayo a la izquierda y coche a la derecha
+st.markdown("<div class='app-title'>⚡ Carga Atto 2 DMi 🚗</div>", unsafe_allow_html=True)
 
 datos = st.session_state.get("datos_coche")
 cfg = cargar_configuracion()
