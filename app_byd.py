@@ -1,7 +1,15 @@
 import asyncio
 import datetime
+from zoneinfo import ZoneInfo
 import streamlit as st
 from pybyd import BydClient, BydConfig
+
+# Zona horaria de España (peninsular)
+TZ_LOCAL = ZoneInfo("Europe/Madrid")
+
+def obtener_ahora_local() -> datetime.datetime:
+    """Devuelve la fecha y hora actual en el huso horario peninsular español."""
+    return datetime.datetime.now(TZ_LOCAL)
 
 # Configuración adaptada a pantalla móvil (vista vertical)
 st.set_page_config(
@@ -131,15 +139,14 @@ def redondear_a_5_minutos(dt: datetime.datetime) -> datetime.datetime:
     return dt_base + datetime.timedelta(minutes=round(minutos_ajustados))
 
 async def descargar_datos_reales():
-# Lee las credenciales de forma segura desde los secretos de Streamlit
+    # Lee de los Secrets configurados en Streamlit Cloud
     usuario = st.secrets["byd"]["username"]
     password = st.secrets["byd"]["password"]
-    
+
     config = BydConfig(
         username=usuario,
         password=password
     )
-    
     async with BydClient(config) as client:
         vehicles = await client.get_vehicles()
         if not vehicles:
@@ -150,7 +157,7 @@ async def descargar_datos_reales():
             "vin": vin,
             "bateria": int(realtime.elec_percent),
             "autonomia_ev": int(realtime.ev_endurance),
-            "timestamp": datetime.datetime.now()
+            "timestamp": obtener_ahora_local()  # Hora local correcta
         }
 
 def actualizar_telemetria():
@@ -164,7 +171,7 @@ def actualizar_telemetria():
         except Exception as e:
             st.error(f"Error al contactar con la API de BYD: {e}")
 
-# --- Control de sesión para evitar consultas repetidas ---
+# Control de sesión para evitar consultas repetidas
 if "datos_coche" not in st.session_state:
     actualizar_telemetria()
 
@@ -210,7 +217,8 @@ if datos:
                 format="%.2f"
             )
         
-        ahora = redondear_a_5_minutos(datetime.datetime.now())
+        # Hora redondeada por defecto con la hora local real
+        ahora = redondear_a_5_minutos(obtener_ahora_local())
         lista_horas = [f"{i:02d}" for i in range(24)]
         lista_minutos = [f"{i:02d}" for i in range(0, 60, 5)]
         
@@ -251,7 +259,8 @@ if datos:
         duracion = datetime.timedelta(minutes=minutos_totales)
         
         hora_inicio_dt = datetime.time(int(hora_sel), int(min_sel))
-        dt_inicio = datetime.datetime.combine(datetime.date.today(), hora_inicio_dt)
+        fecha_local = obtener_ahora_local().date()
+        dt_inicio = datetime.datetime.combine(fecha_local, hora_inicio_dt)
         dt_fin = redondear_a_5_minutos(dt_inicio + duracion)
         
         cambio_dia = " *(día siguiente)*" if dt_fin.date() > dt_inicio.date() else ""
@@ -278,7 +287,6 @@ if datos:
             </div>
         """, unsafe_allow_html=True)
 
-    # Botón explícito para forzar una nueva lectura
     if st.button("🔄 Leer carga coche", use_container_width=True):
         actualizar_telemetria()
         st.rerun()
