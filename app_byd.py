@@ -13,13 +13,15 @@ CONFIG_FILE = "config.json"
 def obtener_ahora_local() -> datetime.datetime:
     return datetime.datetime.now(TZ_LOCAL)
 
-# --- Persistencia de la última configuración utilizada ---
+# --- Persistencia de la última configuración y telemetría ---
 def cargar_configuracion() -> dict:
     config_defecto = {
         "soc_objetivo": 80,
         "minutos_por_pct": 2.7,
         "hora_inicio": "05h",
-        "minuto_inicio": "00m"
+        "minuto_inicio": "00m",
+        "ultimo_soc_conocido": 50,
+        "ultimo_timestamp_str": ""
     }
     if os.path.exists(CONFIG_FILE):
         try:
@@ -30,14 +32,17 @@ def cargar_configuracion() -> dict:
             pass
     return config_defecto
 
-def guardar_configuracion(clave: str, valor):
+def guardar_configuracion_multiple(pares: dict):
     config_actual = cargar_configuracion()
-    config_actual[clave] = valor
+    config_actual.update(pares)
     try:
         with open(CONFIG_FILE, "w", encoding="utf-8") as f:
             json.dump(config_actual, f)
     except Exception:
         pass
+
+def guardar_configuracion(clave: str, valor):
+    guardar_configuracion_multiple({clave: valor})
 
 st.set_page_config(
     page_title="Ayuda carga Atto 2 Dmi",
@@ -85,7 +90,7 @@ st.markdown("""
             text-align: center;
             font-size: 0.8rem;
             color: #9ca3af;
-            margin-bottom: 12px;
+            margin-bottom: 8px;
         }
 
         .bar-wrapper {
@@ -190,46 +195,85 @@ async def descargar_datos_reales():
             return None
         vin = vehicles[0].vin
         realtime = await client.get_vehicle_realtime(vin)
+        ahora = obtener_ahora_local()
+        bateria_val = int(realtime.elec_percent)
+        
+        # Persistimos la lectura exitosa en disco
+        guardar_configuracion_multiple({
+            "ultimo_soc_conocido": bateria_val,
+            "ultimo_timestamp_str": ahora.strftime('%d/%m/%Y a las %H:%M:%S')
+        })
+        
         return {
             "vin": vin,
-            "bateria": int(realtime.elec_percent),
-            "timestamp": obtener_ahora_local()
+            "bateria": bateria_val,
+            "timestamp_str": ahora.strftime('%d/%m/%Y a las %H:%M:%S'),
+            "manual": False
         }
 
-def actualizar_telemetria():
-    with st.spinner("Conectando con el coche..."):
+def intentar_actualizar_telemetria():
+    cfg = cargar_configuracion()
+    with st.spinner("Intentando conectar con el coche..."):
         try:
             res = asyncio.run(descargar_datos_reales())
             if res:
                 st.session_state["datos_coche"] = res
-            else:
-                st.error("No se encontraron vehículos vinculados.")
-        except Exception as e:
-            st.error(f"Error al contactar con la API de BYD: {e}")
+                st.session_state["modo_manual"] = False
+                return
+        except Exception:
+            pass  # Fallo de conexión o timeout (garaje)
+            
+    # Si falla la conexión, cargamos el último valor conocido en modo manual
+    st.session_state["modo_manual"] = True
+    st.session_state["datos_coche"] = {
+        "bateria": int(cfg.get("ultimo_soc_conocido", 50)),
+        "timestamp_str": cfg.get("ultimo_timestamp_str", "Desconocido"),
+        "manual": True
+    }
 
+# Primera ejecución al abrir la app
 if "datos_coche" not in st.session_state:
-    actualizar_telemetria()
+    intentar_actualizar_telemetria()
 
 st.markdown("<div class='app-title'>⚡ Ayuda carga Atto 2 Dmi</div>", unsafe_allow_html=True)
 
 datos = st.session_state.get("datos_coche")
+cfg = cargar_configuracion()
 
 if datos:
-    soc_actual = datos["bateria"]
-    dt_lectura = datos["timestamp"]
+    es_manual = datos.get("manual", False)
     
-    cfg = cargar_configuracion()
-
-    # 1. Métrica destacada
-    st.markdown(f"""
-        <div class="soc-highlight-container">
-            <span class="soc-value">{soc_actual}</span>
-            <span class="soc-unit">%</span>
-        </div>
-        <div class="timestamp-box">
-            🕒 Leído el {dt_lectura.strftime('%d/%m/%Y a las %H:%M:%S')}
-        </div>
-    """, unsafe_allow_html=True)
+    # 1. Indicador numérico destacado o selector manual
+    if es_manual:
+        st.warning("⚠️ Sin conexión con el coche (garaje). Puedes ajustar la carga manualmente:")
+        soc_actual = st.number_input(
+            "Carga actual del coche (%):",
+            min_value=0,
+            max_value=100,
+            value=int(datos["bateria"]),
+            step=1,
+            key="input_soc_manual",
+            help="Introduce el porcentaje que marca el cuadro del vehículo."
+        )
+        # Actualizamos en memoria
+        datos["bateria"] = soc_actual
+        guardar_configuracion("ultimo_soc_conocido", soc_actual)
+        
+        ts_str = datos.get("timestamp_str", "")
+        if ts_str and ts_str != "Desconocido":
+            st.markdown(f"<div class='timestamp-box'>🕒 Última telemetría leída: {ts_str}</div>", unsafe_allow_html=True)
+    else:
+        soc_actual = datos["bateria"]
+        ts_str = datos.get("timestamp_str", "")
+        st.markdown(f"""
+            <div class="soc-highlight-container">
+                <span class="soc-value">{soc_actual}</span>
+                <span class="soc-unit">%</span>
+            </div>
+            <div class="timestamp-box">
+                🕒 Leído el {ts_str}
+            </div>
+        """, unsafe_allow_html=True)
 
     # 2. Carga deseada (%)
     soc_objetivo = st.slider(
@@ -242,7 +286,7 @@ if datos:
         on_change=lambda: guardar_configuracion("soc_objetivo", st.session_state.slider_soc)
     )
 
-    # 3. Barra tricolor con escala numérica sin el símbolo % (0, 10, 20, ..., 100)
+    # 3. Barra tricolor con escala sin %
     pct_azul = min(max(soc_actual, 0), 100)
     pct_verde = max(0, soc_objetivo - soc_actual) if soc_objetivo > soc_actual else 0
     pct_gris = max(0, 100 - (pct_azul + pct_verde))
@@ -358,14 +402,8 @@ if datos:
         label_visibility="collapsed"
     )
 
-    # 7. Botón final de actualización
+    # 7. Botón de actualización
     st.write("")
     if st.button("🔄 Actualizar valor carga actual", use_container_width=True):
-        actualizar_telemetria()
-        st.rerun()
-
-else:
-    st.warning("No hay datos de telemetría disponibles.")
-    if st.button("🔄 Actualizar valor carga actual", use_container_width=True):
-        actualizar_telemetria()
+        intentar_actualizar_telemetria()
         st.rerun()
