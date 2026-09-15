@@ -171,6 +171,15 @@ st.markdown("""
             color: #cbd5e1;
             margin-bottom: 4px;
         }
+
+        .footer-text {
+            text-align: right;
+            font-size: 0.78rem;
+            color: #9ca3af;
+            margin-top: 30px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(156, 163, 175, 0.2);
+        }
     </style>
 """, unsafe_allow_html=True)
 
@@ -198,7 +207,6 @@ async def descargar_datos_reales():
         ahora = obtener_ahora_local()
         bateria_val = int(realtime.elec_percent)
         
-        # Persistimos la lectura exitosa en disco
         guardar_configuracion_multiple({
             "ultimo_soc_conocido": bateria_val,
             "ultimo_timestamp_str": ahora.strftime('%d/%m/%Y a las %H:%M:%S')
@@ -221,9 +229,8 @@ def intentar_actualizar_telemetria():
                 st.session_state["modo_manual"] = False
                 return
         except Exception:
-            pass  # Fallo de conexión o timeout (garaje)
+            pass
             
-    # Si falla la conexión, cargamos el último valor conocido en modo manual
     st.session_state["modo_manual"] = True
     st.session_state["datos_coche"] = {
         "bateria": int(cfg.get("ultimo_soc_conocido", 50)),
@@ -231,11 +238,11 @@ def intentar_actualizar_telemetria():
         "manual": True
     }
 
-# Primera ejecución al abrir la app
 if "datos_coche" not in st.session_state:
     intentar_actualizar_telemetria()
 
-st.markdown("<div class='app-title'>⚡ Ayuda carga Atto 2 Dmi</div>", unsafe_allow_html=True)
+# Nuevo título principal
+st.markdown("<div class='app-title'>⚡ Carga Atto 2 DMi</div>", unsafe_allow_html=True)
 
 datos = st.session_state.get("datos_coche")
 cfg = cargar_configuracion()
@@ -255,7 +262,6 @@ if datos:
             key="input_soc_manual",
             help="Introduce el porcentaje que marca el cuadro del vehículo."
         )
-        # Actualizamos en memoria
         datos["bateria"] = soc_actual
         guardar_configuracion("ultimo_soc_conocido", soc_actual)
         
@@ -298,7 +304,7 @@ if datos:
         elif i == 100:
             scale_points_html.append("<span class='scale-point scale-point-100'>100</span>")
         else:
-            scale_points_html.append(f"<span class='scale-point' style='left: {i}%;'>{i}</span>")
+            scale_points_html.append(f"<span class='scale-point' style='left: {i}%;'>{i}%</span>")
     
     escala_html = "".join(scale_points_html)
     
@@ -407,3 +413,13 @@ if datos:
     if st.button("🔄 Actualizar valor carga actual", use_container_width=True):
         intentar_actualizar_telemetria()
         st.rerun()
+
+    # 8. Pie de página ajustado a la derecha
+    st.markdown("<div class='footer-text'>© Pablo Ruipérez - Septiembre 2026</div>", unsafe_allow_html=True)
+
+else:
+    st.warning("No hay datos de telemetría disponibles.")
+    if st.button("🔄 Actualizar valor carga actual", use_container_width=True):
+        intentar_actualizar_telemetria()
+        st.rerun()
+    st.markdown("<div class='footer-text'>© Pablo Ruipérez - Septiembre 2026</div>", unsafe_allow_html=True)
