@@ -1,4 +1,3 @@
-
 import asyncio
 import datetime
 from zoneinfo import ZoneInfo
@@ -65,7 +64,7 @@ st.markdown("""
             margin-bottom: 12px;
         }
 
-        /* Contenedor envoltorio de la barra con margen de seguridad */
+        /* Contenedor envoltorio de la barra con posicionamiento preciso */
         .bar-wrapper {
             width: 100%;
             padding: 0 4px;
@@ -87,7 +86,6 @@ st.markdown("""
         .seg-deseado { background-color: #10b981; height: 100%; }
         .seg-resto { background-color: #374151; height: 100%; }
 
-        /* Contenedor relativo para posicionar los números de forma exacta */
         .scale-relative-container {
             position: relative;
             width: 100%;
@@ -210,60 +208,58 @@ if datos:
         </div>
     """, unsafe_allow_html=True)
 
-    # 2. Configuración interactiva
-    with st.expander("⚙️ Parámetros de carga", expanded=True):
-        soc_objetivo = st.slider(
-            "Carga deseada (%)",
-            min_value=0,
-            max_value=100,
-            value=max(soc_actual + 1 if soc_actual < 100 else 100, 80 if soc_actual < 80 else soc_actual),
-            step=1
-        )
-        
-        minutos_por_pct = st.number_input(
-            "Minutos por 1%:",
-            min_value=0.5,
-            max_value=15.0,
-            value=2.7,
-            step=0.1,
-            format="%.2f"
-        )
-        
-        ahora = redondear_a_5_minutos(obtener_ahora_local())
-        lista_horas = [f"{i:02d}h" for i in range(24)]
-        lista_minutos = [f"{i:02d}m" for i in range(0, 60, 5)]
-        
-        hora_defecto_str = f"{ahora.hour:02d}h"
-        min_defecto_str = f"{ahora.minute:02d}m"
+    # 2. Configuración interactiva (SIEMPRE VISIBLE, sin expander)
+    soc_objetivo = st.slider(
+        "Carga deseada (%)",
+        min_value=0,
+        max_value=100,
+        value=80,  # Valor por defecto al arrancar fijado al 80%
+        step=1
+    )
+    
+    minutos_por_pct = st.number_input(
+        "Minutos por 1%:",
+        min_value=0.5,
+        max_value=15.0,
+        value=2.7,
+        step=0.1,
+        format="%.2f"
+    )
+    
+    lista_horas = [f"{i:02d}h" for i in range(24)]
+    lista_minutos = [f"{i:02d}m" for i in range(0, 60, 5)]
+    
+    # Valores por defecto fijos al arrancar: 05:00h
+    hora_defecto_str = "05h"
+    min_defecto_str = "00m"
 
-        st.markdown("<div class='section-time-title'>🕐 Hora de inicio:</div>", unsafe_allow_html=True)
-        hora_seleccionada = st.pills(
-            "Seleccionar hora",
-            options=lista_horas,
-            default=hora_defecto_str,
-            label_visibility="collapsed"
-        )
+    st.markdown("<div class='section-time-title'>🕐 Hora de inicio:</div>", unsafe_allow_html=True)
+    hora_seleccionada = st.pills(
+        "Seleccionar hora",
+        options=lista_horas,
+        default=hora_defecto_str,
+        label_visibility="collapsed"
+    )
 
-        st.markdown("<div class='section-time-title'>⏱️ Minutos de inicio:</div>", unsafe_allow_html=True)
-        minuto_seleccionado = st.pills(
-            "Seleccionar minutos",
-            options=lista_minutos,
-            default=min_defecto_str if min_defecto_str in lista_minutos else lista_minutos[0],
-            label_visibility="collapsed"
-        )
+    st.markdown("<div class='section-time-title'>⏱️ Minutos de inicio:</div>", unsafe_allow_html=True)
+    minuto_seleccionado = st.pills(
+        "Seleccionar minutos",
+        options=lista_minutos,
+        default=min_defecto_str,
+        label_visibility="collapsed"
+    )
 
-    # 3. Barra de progreso tricolor con alineación matemática
+    # 3. Barra de progreso tricolor con alineación matemática exacta
     pct_azul = min(max(soc_actual, 0), 100)
     pct_verde = max(0, soc_objetivo - soc_actual) if soc_objetivo > soc_actual else 0
     pct_gris = max(0, 100 - (pct_azul + pct_verde))
 
-    # Construcción de los puntos de escala con su posición exacta calculada
     scale_points_html = []
     for i in range(0, 101, 10):
         if i == 0:
-            scale_points_html.append(f"<span class='scale-point scale-point-0'>0%</span>")
+            scale_points_html.append("<span class='scale-point scale-point-0'>0%</span>")
         elif i == 100:
-            scale_points_html.append(f"<span class='scale-point scale-point-100'>100%</span>")
+            scale_points_html.append("<span class='scale-point scale-point-100'>100%</span>")
         else:
             scale_points_html.append(f"<span class='scale-point' style='left: {i}%;'>{i}%</span>")
     
@@ -282,7 +278,7 @@ if datos:
         </div>
     """, unsafe_allow_html=True)
 
-    # 4. Cálculo de horarios
+    # 4. Horarios calculados
     if soc_objetivo <= soc_actual:
         st.info(f"El nivel actual ({soc_actual}%) ya cubre o supera el objetivo marcado ({soc_objetivo}%).")
     else:
@@ -331,3 +327,4 @@ else:
     if st.button("🔄 Intentar leer carga coche", use_container_width=True):
         actualizar_telemetria()
         st.rerun()
+        
