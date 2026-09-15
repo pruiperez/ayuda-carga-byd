@@ -74,7 +74,7 @@ st.markdown("""
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            color: #94a3b8; /* Gris claro elegante */
+            color: #94a3b8;
         }
 
         .soc-highlight-container {
@@ -252,7 +252,6 @@ def intentar_actualizar_telemetria():
 if "datos_coche" not in st.session_state:
     intentar_actualizar_telemetria()
 
-# Título con icono de coche en gris claro
 icono_coche_svg = """
 <span class='car-icon-grey'>
     <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
@@ -325,7 +324,7 @@ if datos:
         elif i == 100:
             scale_points_html.append("<span class='scale-point scale-point-100'>100</span>")
         else:
-            scale_points_html.append(f"<span class='scale-point' style='left: {i}%;'>{i}%</span>")
+            scale_points_html.append(f"<span class='scale-point' style='left: {i}%;'>{i}</span>")
     
     escala_html = "".join(scale_points_html)
     
@@ -390,9 +389,9 @@ if datos:
             </div>
         """, unsafe_allow_html=True)
 
-    # 5. Parámetro: minutos por 1%
+    # 5. Parámetro: minutos para cargar 1% (texto actualizado)
     minutos_por_pct = st.number_input(
-        "Minutos por 1%:",
+        "Minutos para cargar 1%:",
         min_value=0.5,
         max_value=15.0,
         value=minutos_por_pct_guardado,
