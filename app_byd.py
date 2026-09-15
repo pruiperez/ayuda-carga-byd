@@ -4,14 +4,12 @@ from zoneinfo import ZoneInfo
 import streamlit as st
 from pybyd import BydClient, BydConfig
 
-# Zona horaria de España (peninsular)
+# Zona horaria peninsular española
 TZ_LOCAL = ZoneInfo("Europe/Madrid")
 
 def obtener_ahora_local() -> datetime.datetime:
-    """Devuelve la fecha y hora actual en el huso horario peninsular español."""
     return datetime.datetime.now(TZ_LOCAL)
 
-# Configuración adaptada a pantalla móvil (vista vertical)
 st.set_page_config(
     page_title="Ayuda carga Atto 2 Dmi",
     page_icon="⚡",
@@ -19,7 +17,6 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Estilos visuales
 st.markdown("""
     <style>
         .block-container { 
@@ -76,18 +73,9 @@ st.markdown("""
             overflow: hidden;
             box-shadow: inset 0 2px 4px rgba(0,0,0,0.15);
         }
-        .seg-actual {
-            background-color: #2563eb; /* Azul */
-            height: 100%;
-        }
-        .seg-deseado {
-            background-color: #10b981; /* Verde */
-            height: 100%;
-        }
-        .seg-resto {
-            background-color: #4b5563; /* Gris */
-            height: 100%;
-        }
+        .seg-actual { background-color: #2563eb; height: 100%; }
+        .seg-deseado { background-color: #10b981; height: 100%; }
+        .seg-resto { background-color: #4b5563; height: 100%; }
 
         .scale-container {
             display: flex;
@@ -102,18 +90,32 @@ st.markdown("""
             text-align: center;
         }
 
-        /* Reparto exacto al 50% para Hora y Minutos en una sola línea */
+        /* Control anti-desbordamiento para Hora y Minuto en pantallas móviles estrechas */
         div[data-testid="stHorizontalBlock"] {
             display: flex !important;
             flex-direction: row !important;
             flex-wrap: nowrap !important;
             width: 100% !important;
-            gap: 10px !important;
+            gap: 8px !important;
+            overflow: hidden !important;
         }
+        
         div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
             flex: 1 1 50% !important;
             width: 50% !important;
+            max-width: 50% !important;
             min-width: 0 !important;
+        }
+
+        div[data-baseweb="select"] {
+            width: 100% !important;
+            min-width: 0 !important;
+        }
+        
+        div[data-baseweb="select"] > div {
+            padding-left: 6px !important;
+            padding-right: 2px !important;
+            font-size: 0.9rem !important;
         }
 
         .schedule-card {
@@ -156,10 +158,7 @@ async def descargar_datos_reales():
     usuario = st.secrets["byd"]["username"]
     password = st.secrets["byd"]["password"]
 
-    config = BydConfig(
-        username=usuario,
-        password=password
-    )
+    config = BydConfig(username=usuario, password=password)
     async with BydClient(config) as client:
         vehicles = await client.get_vehicles()
         if not vehicles:
@@ -184,7 +183,6 @@ def actualizar_telemetria():
         except Exception as e:
             st.error(f"Error al contactar con la API de BYD: {e}")
 
-# Control de sesión para evitar consultas repetidas
 if "datos_coche" not in st.session_state:
     actualizar_telemetria()
 
@@ -218,7 +216,6 @@ if datos:
             step=1
         )
         
-        # Parámetro de velocidad
         minutos_por_pct = st.number_input(
             "Minutos por 1%:",
             min_value=0.5,
@@ -228,7 +225,7 @@ if datos:
             format="%.2f"
         )
         
-        # Hora y Minuto repartidos simétricamente (50% - 50%)
+        # Hora y Minuto con etiquetas cortas y protección anti-desborde
         ahora = redondear_a_5_minutos(obtener_ahora_local())
         lista_horas = [f"{i:02d}" for i in range(24)]
         lista_minutos = [f"{i:02d}" for i in range(0, 60, 5)]
@@ -241,9 +238,9 @@ if datos:
         with col_hora:
             hora_sel = st.selectbox("Hora inicio:", options=lista_horas, index=idx_hora_defecto)
         with col_min:
-            min_sel = st.selectbox("Minutos:", options=lista_minutos, index=idx_min_defecto)
+            min_sel = st.selectbox("Minuto:", options=lista_minutos, index=idx_min_defecto)
 
-    # 3. Segmentos para la barra tricolor
+    # 3. Barra de progreso tricolor
     pct_azul = min(max(soc_actual, 0), 100)
     pct_verde = max(0, soc_objetivo - soc_actual) if soc_objetivo > soc_actual else 0
     pct_gris = max(0, 100 - (pct_azul + pct_verde))
@@ -261,7 +258,7 @@ if datos:
         </div>
     """, unsafe_allow_html=True)
 
-    # 4. Horarios calculados
+    # 4. Cálculo de horarios
     if soc_objetivo <= soc_actual:
         st.info(f"El nivel actual ({soc_actual}%) ya cubre o supera el objetivo marcado ({soc_objetivo}%).")
     else:
