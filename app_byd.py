@@ -67,7 +67,14 @@ st.markdown("""
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 8px;
+            gap: 10px;
+        }
+
+        .car-icon-grey {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #94a3b8; /* Gris claro elegante */
         }
 
         .soc-highlight-container {
@@ -245,8 +252,18 @@ def intentar_actualizar_telemetria():
 if "datos_coche" not in st.session_state:
     intentar_actualizar_telemetria()
 
-# Título centrado y simétrico con rayo a la izquierda y coche a la derecha
-st.markdown("<div class='app-title'>⚡ Carga Atto 2 DMi 🚗</div>", unsafe_allow_html=True)
+# Título con icono de coche en gris claro
+icono_coche_svg = """
+<span class='car-icon-grey'>
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+        <path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.85 7h10.29l1.04 3H5.81l1.04-3zM19 17H5v-4.66l.12-.34h13.77l.11.34V17z"/>
+        <circle cx="7.5" cy="14.5" r="1.5"/>
+        <circle cx="16.5" cy="14.5" r="1.5"/>
+    </svg>
+</span>
+"""
+
+st.markdown(f"<div class='app-title'>⚡ Carga Atto 2 DMi {icono_coche_svg}</div>", unsafe_allow_html=True)
 
 datos = st.session_state.get("datos_coche")
 cfg = cargar_configuracion()
