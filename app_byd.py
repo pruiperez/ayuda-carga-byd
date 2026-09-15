@@ -58,16 +58,33 @@ st.markdown("""
             padding-bottom: 2rem; 
         }
         
+        /* Título adaptable a modo claro y oscuro */
         .app-title {
             text-align: center;
             font-size: 1.6rem;
             font-weight: 800;
-            color: var(--text-color, #111827);
+            color: var(--text-color) !important;
             margin-bottom: 0.4rem;
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 10px;
+        }
+
+        /* Reglas explícitas para modo oscuro */
+        @media (prefers-color-scheme: dark) {
+            .app-title {
+                color: #f8fafc !important;
+            }
+            .section-time-title {
+                color: #e2e8f0 !important;
+            }
+        }
+        [data-theme="dark"] .app-title {
+            color: #f8fafc !important;
+        }
+        [data-theme="dark"] .section-time-title {
+            color: #e2e8f0 !important;
         }
 
         .car-icon-grey {
@@ -324,7 +341,7 @@ if datos:
         elif i == 100:
             scale_points_html.append("<span class='scale-point scale-point-100'>100</span>")
         else:
-            scale_points_html.append(f"<span class='scale-point' style='left: {i}%;'>{i}</span>")
+            scale_points_html.append(f"<span class='scale-point' style='left: {i}%;'>{i}%</span>")
     
     escala_html = "".join(scale_points_html)
     
@@ -389,7 +406,7 @@ if datos:
             </div>
         """, unsafe_allow_html=True)
 
-    # 5. Parámetro: minutos para cargar 1% (texto actualizado)
+    # 5. Parámetro: minutos para cargar 1%
     minutos_por_pct = st.number_input(
         "Minutos para cargar 1%:",
         min_value=0.5,
