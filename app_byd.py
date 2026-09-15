@@ -102,6 +102,15 @@ st.markdown("""
             text-align: center;
         }
 
+        /* Fuerza a que las columnas de hora y minuto no se apilen en móvil */
+        [data-testid="column"] {
+            min-width: 0 !important;
+        }
+        div[data-testid="stHorizontalBlock"] {
+            flex-wrap: nowrap !important;
+            gap: 12px !important;
+        }
+
         .schedule-card {
             background: linear-gradient(135deg, #1e293b, #0f172a);
             border: 2px solid #334155;
@@ -139,7 +148,6 @@ def redondear_a_5_minutos(dt: datetime.datetime) -> datetime.datetime:
     return dt_base + datetime.timedelta(minutes=round(minutos_ajustados))
 
 async def descargar_datos_reales():
-    # Lee de los Secrets configurados en Streamlit Cloud
     usuario = st.secrets["byd"]["username"]
     password = st.secrets["byd"]["password"]
 
@@ -157,7 +165,7 @@ async def descargar_datos_reales():
             "vin": vin,
             "bateria": int(realtime.elec_percent),
             "autonomia_ev": int(realtime.ev_endurance),
-            "timestamp": obtener_ahora_local()  # Hora local correcta
+            "timestamp": obtener_ahora_local()
         }
 
 def actualizar_telemetria():
@@ -205,19 +213,17 @@ if datos:
             step=1
         )
         
-        col_ratio, col_hora, col_min = st.columns([1.2, 1, 1])
+        # Fila 1: Tasa de carga
+        minutos_por_pct = st.number_input(
+            "Minutos por 1%:",
+            min_value=0.5,
+            max_value=15.0,
+            value=2.7,
+            step=0.1,
+            format="%.2f"
+        )
         
-        with col_ratio:
-            minutos_por_pct = st.number_input(
-                "Minutos por 1%:",
-                min_value=0.5,
-                max_value=15.0,
-                value=2.7,
-                step=0.1,
-                format="%.2f"
-            )
-        
-        # Hora redondeada por defecto con la hora local real
+        # Fila 2: Hora y Minuto emparejados en la misma línea horizontal
         ahora = redondear_a_5_minutos(obtener_ahora_local())
         lista_horas = [f"{i:02d}" for i in range(24)]
         lista_minutos = [f"{i:02d}" for i in range(0, 60, 5)]
@@ -226,9 +232,9 @@ if datos:
         min_defecto_str = f"{ahora.minute:02d}"
         idx_min_defecto = lista_minutos.index(min_defecto_str) if min_defecto_str in lista_minutos else 0
 
+        col_hora, col_min = st.columns(2)
         with col_hora:
             hora_sel = st.selectbox("Hora inicio:", options=lista_horas, index=idx_hora_defecto)
-        
         with col_min:
             min_sel = st.selectbox("Minutos:", options=lista_minutos, index=idx_min_defecto)
 
