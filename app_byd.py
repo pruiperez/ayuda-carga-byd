@@ -102,13 +102,18 @@ st.markdown("""
             text-align: center;
         }
 
-        /* Fuerza a que las columnas de hora y minuto no se apilen en móvil */
-        [data-testid="column"] {
-            min-width: 0 !important;
-        }
+        /* Reparto exacto al 50% para Hora y Minutos en una sola línea */
         div[data-testid="stHorizontalBlock"] {
+            display: flex !important;
+            flex-direction: row !important;
             flex-wrap: nowrap !important;
-            gap: 12px !important;
+            width: 100% !important;
+            gap: 10px !important;
+        }
+        div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
+            flex: 1 1 50% !important;
+            width: 50% !important;
+            min-width: 0 !important;
         }
 
         .schedule-card {
@@ -213,7 +218,7 @@ if datos:
             step=1
         )
         
-        # Fila 1: Tasa de carga
+        # Parámetro de velocidad
         minutos_por_pct = st.number_input(
             "Minutos por 1%:",
             min_value=0.5,
@@ -223,7 +228,7 @@ if datos:
             format="%.2f"
         )
         
-        # Fila 2: Hora y Minuto emparejados en la misma línea horizontal
+        # Hora y Minuto repartidos simétricamente (50% - 50%)
         ahora = redondear_a_5_minutos(obtener_ahora_local())
         lista_horas = [f"{i:02d}" for i in range(24)]
         lista_minutos = [f"{i:02d}" for i in range(0, 60, 5)]
