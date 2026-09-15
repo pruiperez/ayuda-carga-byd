@@ -242,7 +242,7 @@ if datos:
         on_change=lambda: guardar_configuracion("soc_objetivo", st.session_state.slider_soc)
     )
 
-    # 3. Barra tricolor con escala matemática
+    # 3. Barra tricolor con escala numérica sin el símbolo % (0, 10, 20, ..., 100)
     pct_azul = min(max(soc_actual, 0), 100)
     pct_verde = max(0, soc_objetivo - soc_actual) if soc_objetivo > soc_actual else 0
     pct_gris = max(0, 100 - (pct_azul + pct_verde))
@@ -250,11 +250,11 @@ if datos:
     scale_points_html = []
     for i in range(0, 101, 10):
         if i == 0:
-            scale_points_html.append("<span class='scale-point scale-point-0'>0%</span>")
+            scale_points_html.append("<span class='scale-point scale-point-0'>0</span>")
         elif i == 100:
-            scale_points_html.append("<span class='scale-point scale-point-100'>100%</span>")
+            scale_points_html.append("<span class='scale-point scale-point-100'>100</span>")
         else:
-            scale_points_html.append(f"<span class='scale-point' style='left: {i}%;'>{i}%</span>")
+            scale_points_html.append(f"<span class='scale-point' style='left: {i}%;'>{i}</span>")
     
     escala_html = "".join(scale_points_html)
     
@@ -276,7 +276,6 @@ if datos:
     hora_guardada = cfg.get("hora_inicio", "05h")
     minuto_guardado = cfg.get("minuto_inicio", "00m")
 
-    # Si el widget ya ha sido renderizado antes en la sesión, tomamos su valor activo
     m_pct_actual = st.session_state.get("input_minutos_pct", minutos_por_pct_guardado)
     h_pill_actual = st.session_state.get("pills_hora", hora_guardada) or hora_guardada
     m_pill_actual = st.session_state.get("pills_minuto", minuto_guardado) or minuto_guardado
@@ -320,7 +319,7 @@ if datos:
             </div>
         """, unsafe_allow_html=True)
 
-    # 5. El resto de parámetros: minutos por 1%
+    # 5. Parámetro: minutos por 1%
     minutos_por_pct = st.number_input(
         "Minutos por 1%:",
         min_value=0.5,
