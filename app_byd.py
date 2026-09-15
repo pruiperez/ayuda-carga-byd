@@ -1,3 +1,4 @@
+
 import asyncio
 import datetime
 from zoneinfo import ZoneInfo
@@ -64,30 +65,53 @@ st.markdown("""
             margin-bottom: 12px;
         }
 
+        /* Contenedor envoltorio de la barra con margen de seguridad */
+        .bar-wrapper {
+            width: 100%;
+            padding: 0 4px;
+            box-sizing: border-box;
+            margin-top: 10px;
+            margin-bottom: 25px;
+        }
+
         .segmented-bar {
             display: flex;
             width: 100%;
-            height: 18px;
-            background-color: #e5e7eb;
-            border-radius: 9px;
+            height: 16px;
+            background-color: #374151;
+            border-radius: 8px;
             overflow: hidden;
-            box-shadow: inset 0 2px 4px rgba(0,0,0,0.15);
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.25);
         }
         .seg-actual { background-color: #2563eb; height: 100%; }
         .seg-deseado { background-color: #10b981; height: 100%; }
-        .seg-resto { background-color: #4b5563; height: 100%; }
+        .seg-resto { background-color: #374151; height: 100%; }
 
-        .scale-container {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 5px;
-            margin-bottom: 20px;
-            padding: 0 2px;
+        /* Contenedor relativo para posicionar los números de forma exacta */
+        .scale-relative-container {
+            position: relative;
+            width: 100%;
+            height: 18px;
+            margin-top: 6px;
         }
-        .scale-label {
+        
+        .scale-point {
+            position: absolute;
+            top: 0;
             font-size: 0.72rem;
             color: #6b7280;
-            text-align: center;
+            white-space: nowrap;
+            transform: translateX(-50%);
+        }
+        .scale-point-0 {
+            left: 0% !important;
+            transform: translateX(0) !important;
+            text-align: left;
+        }
+        .scale-point-100 {
+            left: 100% !important;
+            transform: translateX(-100%) !important;
+            text-align: right;
         }
 
         .section-time-title {
@@ -205,7 +229,6 @@ if datos:
             format="%.2f"
         )
         
-        # Opciones para horas (0 a 23) y minutos (0 a 55 en saltos de 5)
         ahora = redondear_a_5_minutos(obtener_ahora_local())
         lista_horas = [f"{i:02d}h" for i in range(24)]
         lista_minutos = [f"{i:02d}m" for i in range(0, 60, 5)]
@@ -213,7 +236,6 @@ if datos:
         hora_defecto_str = f"{ahora.hour:02d}h"
         min_defecto_str = f"{ahora.minute:02d}m"
 
-        # SECCIÓN 1: BOTONES DE HORAS (00h a 23h)
         st.markdown("<div class='section-time-title'>🕐 Hora de inicio:</div>", unsafe_allow_html=True)
         hora_seleccionada = st.pills(
             "Seleccionar hora",
@@ -222,7 +244,6 @@ if datos:
             label_visibility="collapsed"
         )
 
-        # SECCIÓN 2: BOTONES DE MINUTOS (00m a 55m)
         st.markdown("<div class='section-time-title'>⏱️ Minutos de inicio:</div>", unsafe_allow_html=True)
         minuto_seleccionado = st.pills(
             "Seleccionar minutos",
@@ -231,21 +252,33 @@ if datos:
             label_visibility="collapsed"
         )
 
-    # 3. Barra de progreso tricolor
+    # 3. Barra de progreso tricolor con alineación matemática
     pct_azul = min(max(soc_actual, 0), 100)
     pct_verde = max(0, soc_objetivo - soc_actual) if soc_objetivo > soc_actual else 0
     pct_gris = max(0, 100 - (pct_azul + pct_verde))
 
-    escala_html = "".join([f"<div class='scale-label'>{i}%</div>" for i in range(0, 101, 10)])
+    # Construcción de los puntos de escala con su posición exacta calculada
+    scale_points_html = []
+    for i in range(0, 101, 10):
+        if i == 0:
+            scale_points_html.append(f"<span class='scale-point scale-point-0'>0%</span>")
+        elif i == 100:
+            scale_points_html.append(f"<span class='scale-point scale-point-100'>100%</span>")
+        else:
+            scale_points_html.append(f"<span class='scale-point' style='left: {i}%;'>{i}%</span>")
+    
+    escala_html = "".join(scale_points_html)
     
     st.markdown(f"""
-        <div class="segmented-bar">
-            <div class="seg-actual" style="width: {pct_azul}%;"></div>
-            <div class="seg-deseado" style="width: {pct_verde}%;"></div>
-            <div class="seg-resto" style="width: {pct_gris}%;"></div>
-        </div>
-        <div class="scale-container">
-            {escala_html}
+        <div class="bar-wrapper">
+            <div class="segmented-bar">
+                <div class="seg-actual" style="width: {pct_azul}%;"></div>
+                <div class="seg-deseado" style="width: {pct_verde}%;"></div>
+                <div class="seg-resto" style="width: {pct_gris}%;"></div>
+            </div>
+            <div class="scale-relative-container">
+                {escala_html}
+            </div>
         </div>
     """, unsafe_allow_html=True)
 
@@ -257,7 +290,6 @@ if datos:
         minutos_totales = delta_pct * minutos_por_pct
         duracion = datetime.timedelta(minutes=minutos_totales)
         
-        # Recuperación de enteros desde la etiqueta seleccionada
         h_val = int((hora_seleccionada or hora_defecto_str).replace("h", ""))
         m_val = int((minuto_seleccionado or min_defecto_str).replace("m", ""))
         
