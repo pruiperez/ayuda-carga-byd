@@ -173,7 +173,7 @@ st.markdown("""
         }
 
         .footer-text {
-            text-align: right;
+            text-align: left;
             font-size: 0.78rem;
             color: #9ca3af;
             margin-top: 30px;
@@ -241,7 +241,6 @@ def intentar_actualizar_telemetria():
 if "datos_coche" not in st.session_state:
     intentar_actualizar_telemetria()
 
-# Nuevo título principal
 st.markdown("<div class='app-title'>⚡ Carga Atto 2 DMi</div>", unsafe_allow_html=True)
 
 datos = st.session_state.get("datos_coche")
@@ -414,7 +413,7 @@ if datos:
         intentar_actualizar_telemetria()
         st.rerun()
 
-    # 8. Pie de página ajustado a la derecha
+    # 8. Pie de página alineado a la izquierda
     st.markdown("<div class='footer-text'>© Pablo Ruipérez - Septiembre 2026</div>", unsafe_allow_html=True)
 
 else:
