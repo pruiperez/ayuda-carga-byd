@@ -92,8 +92,8 @@ st.markdown("""
             width: 100%;
             padding: 0 4px;
             box-sizing: border-box;
-            margin-top: 10px;
-            margin-bottom: 25px;
+            margin-top: 6px;
+            margin-bottom: 20px;
         }
 
         .segmented-bar {
@@ -139,7 +139,7 @@ st.markdown("""
             font-size: 0.9rem;
             font-weight: 700;
             color: var(--text-color, #374151);
-            margin-top: 10px;
+            margin-top: 14px;
             margin-bottom: 4px;
         }
 
@@ -149,7 +149,7 @@ st.markdown("""
             border-radius: 16px;
             padding: 20px;
             text-align: center;
-            margin: 15px 0;
+            margin: 15px 0 25px 0;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
         }
         .time-box {
@@ -220,7 +220,7 @@ if datos:
     
     cfg = cargar_configuracion()
 
-    # 1. Métrica destacada (solo % de batería, sin los km de EV)
+    # 1. Métrica destacada
     st.markdown(f"""
         <div class="soc-highlight-container">
             <span class="soc-value">{soc_actual}</span>
@@ -231,7 +231,7 @@ if datos:
         </div>
     """, unsafe_allow_html=True)
 
-    # 2. Configuración interactiva
+    # 2. Carga deseada (%)
     soc_objetivo = st.slider(
         "Carga deseada (%)",
         min_value=0,
@@ -241,48 +241,8 @@ if datos:
         key="slider_soc",
         on_change=lambda: guardar_configuracion("soc_objetivo", st.session_state.slider_soc)
     )
-    
-    minutos_por_pct = st.number_input(
-        "Minutos por 1%:",
-        min_value=0.5,
-        max_value=15.0,
-        value=float(cfg.get("minutos_por_pct", 2.7)),
-        step=0.1,
-        format="%.2f",
-        key="input_minutos_pct",
-        on_change=lambda: guardar_configuracion("minutos_por_pct", st.session_state.input_minutos_pct)
-    )
-    
-    lista_horas = [f"{i:02d}h" for i in range(24)]
-    lista_minutos = [f"{i:02d}m" for i in range(0, 60, 5)]
-    
-    hora_guardada = cfg.get("hora_inicio", "05h")
-    minuto_guardado = cfg.get("minuto_inicio", "00m")
 
-    idx_hora_default = hora_guardada if hora_guardada in lista_horas else "05h"
-    idx_min_default = minuto_guardado if minuto_guardado in lista_minutos else "00m"
-
-    st.markdown("<div class='section-time-title'>🕐 Hora de inicio:</div>", unsafe_allow_html=True)
-    hora_seleccionada = st.pills(
-        "Seleccionar hora",
-        options=lista_horas,
-        default=idx_hora_default,
-        key="pills_hora",
-        on_change=lambda: guardar_configuracion("hora_inicio", st.session_state.pills_hora),
-        label_visibility="collapsed"
-    )
-
-    st.markdown("<div class='section-time-title'>⏱️ Minutos de inicio:</div>", unsafe_allow_html=True)
-    minuto_seleccionado = st.pills(
-        "Seleccionar minutos",
-        options=lista_minutos,
-        default=idx_min_default,
-        key="pills_minuto",
-        on_change=lambda: guardar_configuracion("minuto_inicio", st.session_state.pills_minuto),
-        label_visibility="collapsed"
-    )
-
-    # 3. Barra de progreso tricolor con escala matemática exacta
+    # 3. Barra tricolor con escala matemática
     pct_azul = min(max(soc_actual, 0), 100)
     pct_verde = max(0, soc_objetivo - soc_actual) if soc_objetivo > soc_actual else 0
     pct_gris = max(0, 100 - (pct_azul + pct_verde))
@@ -311,18 +271,25 @@ if datos:
         </div>
     """, unsafe_allow_html=True)
 
-    # 4. Horarios calculados
+    # 4. Pantalla "INTRODUCIR EN LA PANTALLA DEL BYD"
+    minutos_por_pct_guardado = float(cfg.get("minutos_por_pct", 2.7))
+    hora_guardada = cfg.get("hora_inicio", "05h")
+    minuto_guardado = cfg.get("minuto_inicio", "00m")
+
+    # Si el widget ya ha sido renderizado antes en la sesión, tomamos su valor activo
+    m_pct_actual = st.session_state.get("input_minutos_pct", minutos_por_pct_guardado)
+    h_pill_actual = st.session_state.get("pills_hora", hora_guardada) or hora_guardada
+    m_pill_actual = st.session_state.get("pills_minuto", minuto_guardado) or minuto_guardado
+
     if soc_objetivo <= soc_actual:
         st.info(f"El nivel actual ({soc_actual}%) ya cubre o supera el objetivo marcado ({soc_objetivo}%).")
     else:
         delta_pct = soc_objetivo - soc_actual
-        minutos_totales = delta_pct * minutos_por_pct
+        minutos_totales = delta_pct * m_pct_actual
         duracion = datetime.timedelta(minutes=minutos_totales)
         
-        h_txt = hora_seleccionada or idx_hora_default
-        m_txt = minuto_seleccionado or idx_min_default
-        h_val = int(h_txt.replace("h", ""))
-        m_val = int(m_txt.replace("m", ""))
+        h_val = int(h_pill_actual.replace("h", ""))
+        m_val = int(m_pill_actual.replace("m", ""))
         
         hora_inicio_dt = datetime.time(h_val, m_val)
         fecha_local = obtener_ahora_local().date()
@@ -353,12 +320,53 @@ if datos:
             </div>
         """, unsafe_allow_html=True)
 
-    if st.button("🔄 Leer carga coche", use_container_width=True):
+    # 5. El resto de parámetros: minutos por 1%
+    minutos_por_pct = st.number_input(
+        "Minutos por 1%:",
+        min_value=0.5,
+        max_value=15.0,
+        value=minutos_por_pct_guardado,
+        step=0.1,
+        format="%.2f",
+        key="input_minutos_pct",
+        on_change=lambda: guardar_configuracion("minutos_por_pct", st.session_state.input_minutos_pct)
+    )
+
+    # 6. Hora y Minutos de inicio
+    lista_horas = [f"{i:02d}h" for i in range(24)]
+    lista_minutos = [f"{i:02d}m" for i in range(0, 60, 5)]
+
+    idx_hora_default = hora_guardada if hora_guardada in lista_horas else "05h"
+    idx_min_default = minuto_guardado if minuto_guardado in lista_minutos else "00m"
+
+    st.markdown("<div class='section-time-title'>🕐 Hora de inicio:</div>", unsafe_allow_html=True)
+    hora_seleccionada = st.pills(
+        "Seleccionar hora",
+        options=lista_horas,
+        default=idx_hora_default,
+        key="pills_hora",
+        on_change=lambda: guardar_configuracion("hora_inicio", st.session_state.pills_hora),
+        label_visibility="collapsed"
+    )
+
+    st.markdown("<div class='section-time-title'>⏱️ Minutos de inicio:</div>", unsafe_allow_html=True)
+    minuto_seleccionado = st.pills(
+        "Seleccionar minutos",
+        options=lista_minutos,
+        default=idx_min_default,
+        key="pills_minuto",
+        on_change=lambda: guardar_configuracion("minuto_inicio", st.session_state.pills_minuto),
+        label_visibility="collapsed"
+    )
+
+    # 7. Botón final de actualización
+    st.write("")
+    if st.button("🔄 Actualizar valor carga actual", use_container_width=True):
         actualizar_telemetria()
         st.rerun()
 
 else:
     st.warning("No hay datos de telemetría disponibles.")
-    if st.button("🔄 Intentar leer carga coche", use_container_width=True):
+    if st.button("🔄 Actualizar valor carga actual", use_container_width=True):
         actualizar_telemetria()
         st.rerun()
