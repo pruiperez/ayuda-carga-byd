@@ -1,14 +1,43 @@
 import asyncio
 import datetime
+import json
+import os
 from zoneinfo import ZoneInfo
 import streamlit as st
 from pybyd import BydClient, BydConfig
 
 # Zona horaria peninsular española
 TZ_LOCAL = ZoneInfo("Europe/Madrid")
+CONFIG_FILE = "config.json"
 
 def obtener_ahora_local() -> datetime.datetime:
     return datetime.datetime.now(TZ_LOCAL)
+
+# --- Funciones de persistencia de configuración ---
+def cargar_configuracion() -> dict:
+    config_defecto = {
+        "soc_objetivo": 80,
+        "minutos_por_pct": 2.7,
+        "hora_inicio": "05h",
+        "minuto_inicio": "00m"
+    }
+    if os.path.exists(CONFIG_FILE):
+        try:
+            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+                datos = json.load(f)
+                config_defecto.update(datos)
+        except Exception:
+            pass
+    return config_defecto
+
+def guardar_configuracion(clave: str, valor):
+    config_actual = cargar_configuracion()
+    config_actual[clave] = valor
+    try:
+        with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+            json.dump(config_actual, f)
+    except Exception:
+        pass
 
 st.set_page_config(
     page_title="Ayuda carga Atto 2 Dmi",
@@ -64,7 +93,6 @@ st.markdown("""
             margin-bottom: 12px;
         }
 
-        /* Contenedor envoltorio de la barra con posicionamiento preciso */
         .bar-wrapper {
             width: 100%;
             padding: 0 4px;
@@ -195,6 +223,9 @@ datos = st.session_state.get("datos_coche")
 if datos:
     soc_actual = datos["bateria"]
     dt_lectura = datos["timestamp"]
+    
+    # Cargar valores guardados previamente
+    cfg = cargar_configuracion()
 
     # 1. Métrica destacada
     st.markdown(f"""
@@ -208,36 +239,41 @@ if datos:
         </div>
     """, unsafe_allow_html=True)
 
-    # 2. Configuración interactiva (SIEMPRE VISIBLE, sin expander)
+    # 2. Configuración interactiva con valores persistentes
     soc_objetivo = st.slider(
         "Carga deseada (%)",
         min_value=0,
         max_value=100,
-        value=80,  # Valor por defecto al arrancar fijado al 80%
-        step=1
+        value=int(cfg.get("soc_objetivo", 80)),
+        step=1,
+        key="slider_soc",
+        on_change=lambda: guardar_configuracion("soc_objetivo", st.session_state.slider_soc)
     )
     
     minutos_por_pct = st.number_input(
         "Minutos por 1%:",
         min_value=0.5,
         max_value=15.0,
-        value=2.7,
+        value=float(cfg.get("minutos_por_pct", 2.7)),
         step=0.1,
-        format="%.2f"
+        format="%.2f",
+        key="input_minutos_pct",
+        on_change=lambda: guardar_configuracion("minutos_por_pct", st.session_state.input_minutos_pct)
     )
     
     lista_horas = [f"{i:02d}h" for i in range(24)]
     lista_minutos = [f"{i:02d}m" for i in range(0, 60, 5)]
     
-    # Valores por defecto fijos al arrancar: 05:00h
-    hora_defecto_str = "05h"
-    min_defecto_str = "00m"
+    hora_guardada = cfg.get("hora_inicio", "05h")
+    minuto_guardado = cfg.get("minuto_inicio", "00m")
 
     st.markdown("<div class='section-time-title'>🕐 Hora de inicio:</div>", unsafe_allow_html=True)
     hora_seleccionada = st.pills(
         "Seleccionar hora",
         options=lista_horas,
-        default=hora_defecto_str,
+        default=hora_guardada if hora_guardada in lista_horas else "05h",
+        key="pills_hora",
+        on_change=lambda: guardar_configuracion("hora_inicio", st.session_state.pills_hora),
         label_visibility="collapsed"
     )
 
@@ -245,11 +281,13 @@ if datos:
     minuto_seleccionado = st.pills(
         "Seleccionar minutos",
         options=lista_minutos,
-        default=min_defecto_str,
+        default=minuto_guardado if minuto_guardado in lista_minutos else "00m",
+        key="pills_minuto",
+        on_change=lambda: guardar_configuracion("minuto_inicio", st.session_state.pills_minuto),
         label_visibility="collapsed"
     )
 
-    # 3. Barra de progreso tricolor con alineación matemática exacta
+    # 3. Barra de progreso tricolor con escala exacta
     pct_azul = min(max(soc_actual, 0), 100)
     pct_verde = max(0, soc_objetivo - soc_actual) if soc_objetivo > soc_actual else 0
     pct_gris = max(0, 100 - (pct_azul + pct_verde))
@@ -278,7 +316,7 @@ if datos:
         </div>
     """, unsafe_allow_html=True)
 
-    # 4. Horarios calculados
+    # 4. Cálculo de horarios
     if soc_objetivo <= soc_actual:
         st.info(f"El nivel actual ({soc_actual}%) ya cubre o supera el objetivo marcado ({soc_objetivo}%).")
     else:
@@ -286,8 +324,8 @@ if datos:
         minutos_totales = delta_pct * minutos_por_pct
         duracion = datetime.timedelta(minutes=minutos_totales)
         
-        h_val = int((hora_seleccionada or hora_defecto_str).replace("h", ""))
-        m_val = int((minuto_seleccionado or min_defecto_str).replace("m", ""))
+        h_val = int((hora_seleccionada or hora_guardada).replace("h", ""))
+        m_val = int((minuto_seleccionado or minuto_guardado).replace("m", ""))
         
         hora_inicio_dt = datetime.time(h_val, m_val)
         fecha_local = obtener_ahora_local().date()
@@ -327,4 +365,3 @@ else:
     if st.button("🔄 Intentar leer carga coche", use_container_width=True):
         actualizar_telemetria()
         st.rerun()
-        
