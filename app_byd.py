@@ -92,24 +92,13 @@ st.markdown("""
             color: #94a3b8;
         }
 
-        .soc-highlight-container {
-            display: flex;
-            align-items: baseline;
-            justify-content: center;
-            gap: 4px;
-            margin-top: 5px;
-            margin-bottom: 2px;
+        /* --- Personalización en color AZUL para el slider de Carga Actual --- */
+        div[data-testid="stSlider"]:has(input[aria-label="Carga actual (%)"]) div[data-baseweb="slider"] div[role="slider"] {
+            background-color: #2563eb !important;
+            box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.25) !important;
         }
-        .soc-value {
-            font-size: 3.8rem;
-            font-weight: 800;
-            color: #2563eb;
-            line-height: 1;
-        }
-        .soc-unit {
-            font-size: 2rem;
-            font-weight: 700;
-            color: #2563eb;
+        div[data-testid="stSlider"]:has(input[aria-label="Carga actual (%)"]) div[data-baseweb="slider"] > div > div:first-child {
+            background-color: #2563eb !important;
         }
 
         .timestamp-box {
@@ -251,6 +240,7 @@ def forzar_actualizacion_api():
             res = asyncio.run(descargar_datos_reales())
             if res:
                 st.session_state["datos_coche"] = res
+                st.session_state["slider_soc_actual"] = res["bateria"]
                 st.success("Telemetría actualizada correctamente desde el vehículo.")
                 return
             else:
@@ -282,15 +272,15 @@ st.markdown(f"<div class='app-title'>⚡ Carga Atto 2 DMi {icono_coche_svg}</div
 datos = st.session_state.get("datos_coche")
 
 if datos:
-    # 1. Selector manual de carga actual a partir del último valor conocido
-    soc_actual = st.number_input(
-        "Carga actual del coche (%):",
+    # 1. Barra deslizadora de Carga Actual (azul) a partir del último valor conocido
+    soc_actual = st.slider(
+        "Carga actual (%)",
         min_value=0,
         max_value=100,
         value=int(datos["bateria"]),
         step=1,
-        key="input_soc_actual",
-        on_change=lambda: guardar_configuracion("ultimo_soc_conocido", st.session_state.input_soc_actual)
+        key="slider_soc_actual",
+        on_change=lambda: guardar_configuracion("ultimo_soc_conocido", st.session_state.slider_soc_actual)
     )
     datos["bateria"] = soc_actual
 
@@ -298,7 +288,7 @@ if datos:
     if ts_str:
         st.markdown(f"<div class='timestamp-box'>🕒 Última lectura remota: {ts_str}</div>", unsafe_allow_html=True)
 
-    # 2. Carga deseada (%)
+    # 2. Barra deslizadora de Carga Deseada (%)
     soc_objetivo = st.slider(
         "Carga deseada (%)",
         min_value=0,
@@ -425,7 +415,7 @@ if datos:
         label_visibility="collapsed"
     )
 
-    # 7. Botón de actualización explícita (único momento en que consulta la API de BYD)
+    # 7. Botón de actualización remota
     st.write("")
     if st.button("🔄 Actualizar valor carga actual", use_container_width=True):
         forzar_actualizacion_api()
