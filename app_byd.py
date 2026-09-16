@@ -58,7 +58,6 @@ st.markdown("""
             padding-bottom: 2rem; 
         }
         
-        /* Título adaptable a modo claro y oscuro */
         .app-title {
             text-align: center;
             font-size: 1.6rem;
@@ -71,7 +70,6 @@ st.markdown("""
             gap: 10px;
         }
 
-        /* Reglas explícitas para modo oscuro */
         @media (prefers-color-scheme: dark) {
             .app-title {
                 color: #f8fafc !important;
@@ -247,27 +245,27 @@ async def descargar_datos_reales():
             "manual": False
         }
 
-def intentar_actualizar_telemetria():
-    cfg = cargar_configuracion()
-    with st.spinner("Intentando conectar con el coche..."):
+def forzar_actualizacion_api():
+    with st.spinner("Conectando con BYD para leer batería..."):
         try:
             res = asyncio.run(descargar_datos_reales())
             if res:
                 st.session_state["datos_coche"] = res
-                st.session_state["modo_manual"] = False
+                st.success("Telemetría actualizada correctamente desde el vehículo.")
                 return
-        except Exception:
-            pass
-            
-    st.session_state["modo_manual"] = True
+            else:
+                st.error("No se encontraron vehículos vinculados.")
+        except Exception as e:
+            st.error(f"No se pudo conectar con BYD: {e}")
+
+# Al arrancar, inicializar exclusivamente con el último valor guardado (sin llamadas a la API)
+cfg = cargar_configuracion()
+if "datos_coche" not in st.session_state:
     st.session_state["datos_coche"] = {
         "bateria": int(cfg.get("ultimo_soc_conocido", 50)),
-        "timestamp_str": cfg.get("ultimo_timestamp_str", "Desconocido"),
+        "timestamp_str": cfg.get("ultimo_timestamp_str", ""),
         "manual": True
     }
-
-if "datos_coche" not in st.session_state:
-    intentar_actualizar_telemetria()
 
 icono_coche_svg = """
 <span class='car-icon-grey'>
@@ -282,41 +280,23 @@ icono_coche_svg = """
 st.markdown(f"<div class='app-title'>⚡ Carga Atto 2 DMi {icono_coche_svg}</div>", unsafe_allow_html=True)
 
 datos = st.session_state.get("datos_coche")
-cfg = cargar_configuracion()
 
 if datos:
-    es_manual = datos.get("manual", False)
-    
-    # 1. Indicador numérico destacado o selector manual
-    if es_manual:
-        st.warning("⚠️ Sin conexión con el coche (garaje). Puedes ajustar la carga manualmente:")
-        soc_actual = st.number_input(
-            "Carga actual del coche (%):",
-            min_value=0,
-            max_value=100,
-            value=int(datos["bateria"]),
-            step=1,
-            key="input_soc_manual",
-            help="Introduce el porcentaje que marca el cuadro del vehículo."
-        )
-        datos["bateria"] = soc_actual
-        guardar_configuracion("ultimo_soc_conocido", soc_actual)
-        
-        ts_str = datos.get("timestamp_str", "")
-        if ts_str and ts_str != "Desconocido":
-            st.markdown(f"<div class='timestamp-box'>🕒 Última telemetría leída: {ts_str}</div>", unsafe_allow_html=True)
-    else:
-        soc_actual = datos["bateria"]
-        ts_str = datos.get("timestamp_str", "")
-        st.markdown(f"""
-            <div class="soc-highlight-container">
-                <span class="soc-value">{soc_actual}</span>
-                <span class="soc-unit">%</span>
-            </div>
-            <div class="timestamp-box">
-                🕒 Leído el {ts_str}
-            </div>
-        """, unsafe_allow_html=True)
+    # 1. Selector manual de carga actual a partir del último valor conocido
+    soc_actual = st.number_input(
+        "Carga actual del coche (%):",
+        min_value=0,
+        max_value=100,
+        value=int(datos["bateria"]),
+        step=1,
+        key="input_soc_actual",
+        on_change=lambda: guardar_configuracion("ultimo_soc_conocido", st.session_state.input_soc_actual)
+    )
+    datos["bateria"] = soc_actual
+
+    ts_str = datos.get("timestamp_str", "")
+    if ts_str:
+        st.markdown(f"<div class='timestamp-box'>🕒 Última lectura remota: {ts_str}</div>", unsafe_allow_html=True)
 
     # 2. Carga deseada (%)
     soc_objetivo = st.slider(
@@ -329,7 +309,7 @@ if datos:
         on_change=lambda: guardar_configuracion("soc_objetivo", st.session_state.slider_soc)
     )
 
-    # 3. Barra tricolor con escala sin %
+    # 3. Barra tricolor con escala matemática directa
     pct_azul = min(max(soc_actual, 0), 100)
     pct_verde = max(0, soc_objetivo - soc_actual) if soc_objetivo > soc_actual else 0
     pct_gris = max(0, 100 - (pct_azul + pct_verde))
@@ -341,7 +321,7 @@ if datos:
         elif i == 100:
             scale_points_html.append("<span class='scale-point scale-point-100'>100</span>")
         else:
-            scale_points_html.append(f"<span class='scale-point' style='left: {i}%;'>{i}%</span>")
+            scale_points_html.append(f"<span class='scale-point' style='left: {i}%;'>{i}</span>")
     
     escala_html = "".join(scale_points_html)
     
@@ -445,18 +425,11 @@ if datos:
         label_visibility="collapsed"
     )
 
-    # 7. Botón de actualización
+    # 7. Botón de actualización explícita (único momento en que consulta la API de BYD)
     st.write("")
     if st.button("🔄 Actualizar valor carga actual", use_container_width=True):
-        intentar_actualizar_telemetria()
+        forzar_actualizacion_api()
         st.rerun()
 
     # 8. Pie de página alineado a la izquierda
-    st.markdown("<div class='footer-text'>© Pablo Ruipérez - Septiembre 2026</div>", unsafe_allow_html=True)
-
-else:
-    st.warning("No hay datos de telemetría disponibles.")
-    if st.button("🔄 Actualizar valor carga actual", use_container_width=True):
-        intentar_actualizar_telemetria()
-        st.rerun()
     st.markdown("<div class='footer-text'>© Pablo Ruipérez - Septiembre 2026</div>", unsafe_allow_html=True)
