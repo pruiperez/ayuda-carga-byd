@@ -71,19 +71,11 @@ st.markdown("""
         }
 
         @media (prefers-color-scheme: dark) {
-            .app-title {
-                color: #f8fafc !important;
-            }
-            .section-time-title {
-                color: #e2e8f0 !important;
-            }
+            .app-title { color: #f8fafc !important; }
+            .section-time-title { color: #e2e8f0 !important; }
         }
-        [data-theme="dark"] .app-title {
-            color: #f8fafc !important;
-        }
-        [data-theme="dark"] .section-time-title {
-            color: #e2e8f0 !important;
-        }
+        [data-theme="dark"] .app-title { color: #f8fafc !important; }
+        [data-theme="dark"] .section-time-title { color: #e2e8f0 !important; }
 
         .car-icon-grey {
             display: inline-flex;
@@ -92,13 +84,36 @@ st.markdown("""
             color: #94a3b8;
         }
 
-        /* --- Personalización en color AZUL para el slider de Carga Actual --- */
-        div[data-testid="stSlider"]:has(input[aria-label="Carga actual (%)"]) div[data-baseweb="slider"] div[role="slider"] {
-            background-color: #2563eb !important;
-            box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.25) !important;
+        /* --- GROSOR GENERAL DE LOS SLIDERS --- */
+        div[data-testid="stSlider"] div[data-baseweb="slider"] > div {
+            height: 10px !important;
         }
+        div[data-testid="stSlider"] div[data-baseweb="slider"] div[role="slider"] {
+            width: 22px !important;
+            height: 22px !important;
+            top: -6px !important;
+        }
+
+        /* --- SLIDER 1: CARGA ACTUAL (AZUL) --- */
         div[data-testid="stSlider"]:has(input[aria-label="Carga actual (%)"]) div[data-baseweb="slider"] > div > div:first-child {
             background-color: #2563eb !important;
+            height: 10px !important;
+        }
+        div[data-testid="stSlider"]:has(input[aria-label="Carga actual (%)"]) div[data-baseweb="slider"] div[role="slider"] {
+            background-color: #2563eb !important;
+            border: 2px solid #ffffff !important;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.35) !important;
+        }
+
+        /* --- SLIDER 2: CARGA DESEADA (VERDE) --- */
+        div[data-testid="stSlider"]:has(input[aria-label="Carga deseada (%)"]) div[data-baseweb="slider"] > div > div:first-child {
+            background-color: #10b981 !important;
+            height: 10px !important;
+        }
+        div[data-testid="stSlider"]:has(input[aria-label="Carga deseada (%)"]) div[data-baseweb="slider"] div[role="slider"] {
+            background-color: #10b981 !important;
+            border: 2px solid #ffffff !important;
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.35) !important;
         }
 
         .timestamp-box {
@@ -239,9 +254,11 @@ def forzar_actualizacion_api():
         try:
             res = asyncio.run(descargar_datos_reales())
             if res:
+                # Actualización de datos y forzado directo en el slider activo
                 st.session_state["datos_coche"] = res
                 st.session_state["slider_soc_actual"] = res["bateria"]
-                st.success("Telemetría actualizada correctamente desde el vehículo.")
+                guardar_configuracion("ultimo_soc_conocido", res["bateria"])
+                st.toast(f"✅ Batería actualizada: {res['bateria']}%")
                 return
             else:
                 st.error("No se encontraron vehículos vinculados.")
@@ -272,7 +289,7 @@ st.markdown(f"<div class='app-title'>⚡ Carga Atto 2 DMi {icono_coche_svg}</div
 datos = st.session_state.get("datos_coche")
 
 if datos:
-    # 1. Barra deslizadora de Carga Actual (azul) a partir del último valor conocido
+    # 1. Barra deslizadora de Carga Actual (Azul gruesa)
     soc_actual = st.slider(
         "Carga actual (%)",
         min_value=0,
@@ -288,7 +305,7 @@ if datos:
     if ts_str:
         st.markdown(f"<div class='timestamp-box'>🕒 Última lectura remota: {ts_str}</div>", unsafe_allow_html=True)
 
-    # 2. Barra deslizadora de Carga Deseada (%)
+    # 2. Barra deslizadora de Carga Deseada (Verde gruesa)
     soc_objetivo = st.slider(
         "Carga deseada (%)",
         min_value=0,
@@ -328,7 +345,7 @@ if datos:
         </div>
     """, unsafe_allow_html=True)
 
-    # 4. Pantalla "INTRODUCIR EN LA PANTALLA DEL BYD"
+    # 4. Tarjeta "INTRODUCIR EN LA PANTALLA DEL BYD"
     minutos_por_pct_guardado = float(cfg.get("minutos_por_pct", 2.7))
     hora_guardada = cfg.get("hora_inicio", "05h")
     minuto_guardado = cfg.get("minuto_inicio", "00m")
